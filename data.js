@@ -124,7 +124,9 @@
 
   // 今日の5問：やさしい2 → ふつう（スタートから）→ ふつう（相手のスタートから＝ひねり）→ むずかしい。倍率は重ねない
   function dailyTags(date) {
-    const R = rng(seedOf("day:" + date)), e = pickN(R, kindsOf(0), 2), n = pickN(R, kindsOf(1), 2), h = pickN(R, kindsOf(2), 1);
+    // ふつうの候補から、やさしい2問の倍率（2〜5倍はやさしい・ふつうの両方にある）を除いてから選ぶ（2026-11-27 CodeRabbit。公開前に直したので過去の日は変わらない）
+    const R = rng(seedOf("day:" + date)), e = pickN(R, kindsOf(0), 2), used = new Set(e.map((id) => BY[id].p / BY[id].q));
+    const n = pickN(R, kindsOf(1).filter((id) => !used.has(BY[id].p / BY[id].q)), 2), h = pickN(R, kindsOf(2), 1);
     return [`${e[0]}|${date}:d0`, `${e[1]}|${date}:d1`, `${n[0]}|${date}:d2~s`, `${n[1]}|${date}:d3~t`, `${h[0]}|${date}:d4`];
   }
   // 上級：むずかしい3問（今日のむずかしいと別の倍率）

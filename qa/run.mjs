@@ -20,7 +20,7 @@ const check = (name, ok, detail = "") => results.push({ name, ok: !!ok, detail: 
 const firstClose = async (q) => { if (await q.locator("#howto[open]").count()) await q.click("#howto-ok"); if (await q.evaluate(() => !!(window.Core && Core.coach && Core.coach.active()))) { await q.evaluate(() => { Core.coach.leave(); scrollTo(0, 0); }); await q.waitForTimeout(100); } }; // はじめての練習の吹き出しをやめてホームへ（sync-template の migrateFirstQa が足した）
 const G = createRequire(import.meta.url)(path.join(root, "data.js"));
 
-const PINS = "e5:s:220:ブタ:10000:3,e2:s:20:カメ:100:2,n5:s:560:ヒツジ:1:0,n2:t:160:ブタ:1000:2,h5-4:t:100:アヒル:10000:0,h9-5:t:170:アヒル:1000:2,h3-2:t:450:ペンギン:100000:3,h6-5:s:130:ペンギン:100000:1;e2:s:200:ペンギン:5000:2,e5:s:40:ニワトリ:5000:1,n9:s:360:ニワトリ:100:1,n8:t:210:ニワトリ:10000:3,h5-2:s:110:カメ:100:1,h3-2:s:50:カメ:5000:1,h5-4:s:60:ヒツジ:5000:2,h6-5:s:80:ペンギン:50000:3;e2:s:70:アヒル:5000:3,e4:s:120:カメ:5:1,n8:s:560:ヒツジ:5:3,n3:t:140:ブタ:5000:0,h7-5:t:190:ペンギン:50000:0,h5-2:s:70:ニワトリ:10:0,h5-4:t:480:ヒツジ:50000:1,h3-2:s:230:カメ:5000:1"; // 過去の日の問題の印（変わったら過去の日の問題が変わっている。data.js を直したら作り直して PR に理由を書く）
+const PINS = "e5:s:220:ブタ:10000:3,e2:s:20:カメ:100:2,n9:s:360:カメ:5000:3,n6:t:130:ニワトリ:1:3,h5-4:t:100:アヒル:10000:0,h9-5:t:170:アヒル:1000:2,h3-2:t:450:ペンギン:100000:3,h6-5:s:130:ペンギン:100000:1;e2:s:200:ペンギン:5000:2,e5:s:40:ニワトリ:5000:1,n4:s:150:ニワトリ:50:2,n8:t:210:ニワトリ:10000:3,h7-5:t:110:ヒツジ:5000:3,h8-5:s:40:ペンギン:5000:1,h5-4:s:60:ヒツジ:5000:2,h6-5:s:80:ペンギン:50000:3;e2:s:70:アヒル:5000:3,e4:s:120:カメ:5:1,n8:s:560:ヒツジ:5:3,n5:t:420:ペンギン:1000:3,h7-5:t:190:ペンギン:50000:0,h5-2:s:70:ニワトリ:10:0,h5-4:t:480:ヒツジ:50000:1,h3-2:s:230:カメ:5000:1"; // 過去の日の問題の印（変わったら過去の日の問題が変わっている。data.js を直したら作り直して PR に理由を書く）
 // ---- 1. 問題の作り方（ブラウザを使わない）----
 // 分数（BigInt。data.js の計算とは別に書く）
 const bg = (a, b) => { a = a < 0n ? -a : a; b = b < 0n ? -b : b; while (b) [a, b] = [b, a % b]; return a || 1n; };
@@ -55,7 +55,7 @@ function countSteps(d, p, q, X) { let gap = F(d * 1000), n = 0, tie = false; con
       const c = countSteps(P.d, P.p, P.q, P.X);
       if (c.n !== P.n2 || P.grp !== String(c.n) || c.tie) why.push(`2段目の回 ${c.n}/${P.n2}${c.tie ? " ちょうど等しい回がある" : ""}`);
       if (P.opts2.length !== 4 || !P.opts2.includes(P.n2) || P.opts2.some((x, i) => x < 1 || (i && x !== P.opts2[i - 1] + 1))) why.push("2段目の選び肢");
-      if (P.n2 < 1 || P.n2 > 40 || P.X >= P.d * 1000) why.push("2段目の回の数");
+      if (P.n2 < 2 || P.n2 > (k.lv === 0 ? 8 : 12) || P.X >= P.d * 1000) why.push(`2段目の回の数 ${P.n2}`); // 2〜12回目（やさしいは8回目まで）。data.js の thOk と同じ決まり（AGENTS.md）
       if (k.lv < 2 && !opts.every(Boolean)) why.push("やさしい・ふつうの答えが整数でない");
       if (k.lv < 2 && want.d !== 1n) why.push("やさしい・ふつうの答えが整数でない");
       if (k.lv === 0 && P.ask !== "s") why.push("やさしいはスタートから");
@@ -80,6 +80,8 @@ function countSteps(d, p, q, X) { let gap = F(d * 1000), n = 0, tie = false; con
   for (let i = 0; i < 365 * 3; i++) {
     const d = new Date(d0 + i * 864e5).toISOString().slice(0, 10), dl = G.dailyTags(d), hl = G.hardTags(d);
     const dk = dl.map((t) => t.split("|")[0]), hk = hl.map((t) => t.split("|")[0]), dP = dl.map((t) => G.make(t));
+    if (new Set(dP.map((P) => P.p / P.q)).size !== 5) bad.push(d + " 倍率が重なる " + dk.join()); // 種類（e2 と n2）がちがっても同じ倍率なら重なり（2026-11-27 CodeRabbit）
+    if (dP.some((P) => P.n2 < 2 || P.n2 > (P.lv === 0 ? 8 : 12))) bad.push(d + " 2段目の回の数");
     if (dl.length !== 5 || new Set(dk).size !== 5 || dk.map((k) => G.BY[k].lv).join() !== "0,0,1,1,2" || dP[2].ask !== "s" || dP[3].ask !== "t") bad.push(d + " 今日");
     if (hl.length !== 3 || new Set(hk).size !== 3 || hk.some((k) => G.BY[k].lv !== 2) || hk.includes(dk[4])) bad.push(d + " 上級");
     if (JSON.stringify(dl) !== JSON.stringify(G.dailyTags(d))) bad.push(d + " 同じにならない");
@@ -137,10 +139,13 @@ await new Promise((r) => server.once("listening", r));
 const url = `http://127.0.0.1:${server.address().port}/`;
 const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
 const errors = [];
-const TODAY = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+// ブラウザの時計は、TODAY の正午（日本時間）から進める。日本時間の0時をまたいで QA を回しても、Node の TODAY とブラウザの今日がずれない（2026-11-27 CodeRabbit）
+const T0 = Date.now(), TODAY = new Date(T0 + 9 * 3600e3).toISOString().slice(0, 10), CLOCK = Date.parse(TODAY + "T03:00:00Z") - T0;
+const TODAY0 = TODAY;
+const newCtx = async (o) => { const c = await browser.newContext(o); await c.addInitScript((sh) => { const n = Date.now; Date.now = () => n() + sh; }, CLOCK); return c; };
 const dayBefore = (n) => new Date(Date.parse(TODAY) - n * 864e5).toISOString().slice(0, 10);
 async function newPage(w = 390, ctx) {
-  const c = ctx || await browser.newContext({ viewport: { width: w, height: 800 } });
+  const c = ctx || await newCtx({ viewport: { width: w, height: 800 } });
   await c.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
   const p = await c.newPage();
   p.on("pageerror", (e) => errors.push(e.message));
@@ -166,10 +171,11 @@ try {
   // はじめて：遊び方が出る・文字の大きさ
   const p = await newPage();
   check("はじめて開くと遊び方が出る", await p.locator("#core-coach").waitFor({ timeout: 3000 }).then(() => true, () => false));
-  { const c = await browser.newContext(); const r = await c.newPage(); await r.goto(url); await r.waitForTimeout(200); let again = 0;
-    for (let i = 0; i < 10; i++) { await r.evaluate(() => localStorage.clear()); await r.reload(); await r.waitForTimeout(200); await r.keyboard.press("Escape"); await r.reload(); await r.waitForTimeout(200); again += await r.locator("#howto[open]").count(); }
-    check("遊び方を Esc で閉じてすぐ読み直しても出ない（10回）", again === 0);
-  { const c = await browser.newContext(); const r = await c.newPage(); const big = []; // 題が h1{flex:1} で縦に伸び（伸びない形と比べて4pxより高ければ失敗）、iPad の縦で大きなすき間が出た（shared-workflows incidents/2026-11-07-title-stretched.md）
+  { const c = await newCtx(); const r = await c.newPage(); await r.goto(url); await r.waitForTimeout(200); let again = 0;
+    let shown = 0; // 初めに出るのは吹き出しの案内 #core-coach。出たことを確かめてから Esc（2026-11-27 CodeRabbit）
+    for (let i = 0; i < 10; i++) { await r.evaluate(() => localStorage.clear()); await r.reload(); shown += await r.locator("#core-coach").waitFor({ timeout: 3000 }).then(() => 1, () => 0); await r.keyboard.press("Escape"); await r.reload(); await r.waitForTimeout(200); again += await r.locator("#core-coach, #howto[open]").count(); }
+    check("遊び方を Esc で閉じてすぐ読み直しても出ない（10回。毎回はじめに出たのを確かめる）", again === 0 && shown === 10, `出た ${shown}・読み直して出た ${again}`);
+  { const c = await newCtx(); const r = await c.newPage(); const big = []; // 題が h1{flex:1} で縦に伸び（伸びない形と比べて4pxより高ければ失敗）、iPad の縦で大きなすき間が出た（shared-workflows incidents/2026-11-07-title-stretched.md）
     for (const [w, h] of [[820, 1180], [390, 844], [1280, 800]]) { await r.setViewportSize({ width: w, height: h }); await r.goto(url); await r.waitForTimeout(200); await r.keyboard.press("Escape"); await r.waitForTimeout(100);
       const v = await r.evaluate(() => { const e = [...document.querySelectorAll(".title")].find((x) => x.offsetParent); if (!e) return null; const h = e.getBoundingClientRect().height; const f = e.style.flex; e.style.flex = "none"; const n = e.getBoundingClientRect().height; e.style.flex = f; return h - n; });
       if (v === null || v > 4) big.push(`${w}x${h}:${v === null ? "題なし" : "+" + Math.round(v) + "px"}`); }
@@ -285,8 +291,19 @@ try {
       check("知らない mode の途中経過は捨て、ホームが出る", !("d" in r) && !("h" in r) && await z.locator("#go-d").count() === 1);
       // 別のタブで終えたまま記録していない上級の回は、次の回を始める前に記録する
       await z.evaluate(() => { const s = __nm.load(), y = "2026-11-06", G = __nm.G; s.runs.h = { mode: "h", date: y, list: G.hardTags(y), res: [{ m: 0 }, { m: 0 }, { m: 0 }], cur: null, id: "old" }; localStorage.setItem("dot-v1", JSON.stringify(s)); });
-      await z.reload(); await z.waitForTimeout(200); await z.evaluate(() => __nm.start("h"));
+      await z.evaluate(() => __nm.start("h")); // 読み直すと home() が先に記録するので、読み直さずに始める（2026-11-27 CodeRabbit）
       check("終えたまま残った前の日の回は、上書きする前に記録する", !!(await mem(z)).hdays["2026-11-06"]);
+      // 保存に2回失敗した（mem にも古い写しがある）とき、前の日の回が形の壊れたもの（res が無い）でも読み直しが止まらない。正しく終えた前の日の回は記録する（2026-11-27 CodeRabbit）
+      { const r = await z.evaluate(() => { const G = __nm.G, y = "2026-11-06", t = __nm.todayKey(), s = __nm.load();
+          const old = JSON.parse(JSON.stringify(s)); old.t = 1; old.days = {}; old.hdays = {};
+          old.runs = { h: { mode: "h", date: y, list: G.hardTags(y), cur: null, id: "broken" }, d: { mode: "d", date: y, list: G.dailyTags(y), res: [0, 0, 0, 0, 0].map((m) => ({ m })), cur: null, id: "oldd" } };
+          s.t = Date.now(); s.days = {}; s.hdays = {}; s.runs = { h: { mode: "h", date: t, list: G.hardTags(t), res: [], cur: null, id: "newh" }, d: { mode: "d", date: t, list: G.dailyTags(t), res: [], cur: null, id: "newd" } };
+          localStorage.setItem("dot-v1", JSON.stringify(s)); __nm.setMem(JSON.stringify(old));
+          try { const m = __nm.load(); return { ok: true, h: m.runs.h && m.runs.h.id, d: m.runs.d && m.runs.d.id, banked: !!m.days[y], hb: !!m.hdays[y] }; } catch (e) { return { ok: false, e: String(e) }; } finally { __nm.setMem(null); } });
+        check("保存に失敗した写しに形の壊れた前の日の回があっても、合わせるときに止まらない（終えた前の日の回は記録する）", r.ok && r.h === "newh" && r.d === "newd" && r.banked && !r.hb, JSON.stringify(r)); }
+      // 積み上がる図の棒は、細い項も追いつく地点の点線をこえない（100 m・10倍で4本目が点線をこえていた。2026-11-27 CodeRabbit）
+      { const over = await z.evaluate(() => { const G = __nm.G, out = []; for (const k of G.KINDS) for (let i = 0; i < 40; i++) { const P = i ? G.make(`${k.id}|bar${i}`) : G.make(G.ZENO_TAG); const d = document.createElement("div"); d.innerHTML = seriesHtml(P); const xe = +d.querySelector("line").getAttribute("x1"); for (const b of d.querySelectorAll("rect")) { const e = +b.getAttribute("x") + +b.getAttribute("width"); if (e > xe + 0.02) out.push(`${P.tag}:${e}>${xe}`); } } return out; });
+        check("積み上がる図：棒の右の端は、追いつく地点の点線をこえない（全種類×40・はじめの例）", over.length === 0, over.slice(0, 3).join(" ")); }
       // とことんで足せる問題が無くても、くり返し呼んで固まらない
       const ok = await z.evaluate(() => { const s = __nm.load(); s.runs.e = { mode: "e", date: __nm.todayKey(), list: ["n3|1", "e2|1"], res: [{ m: 0 }, { m: 0 }], cur: null, id: "e1" }; localStorage.setItem("dot-v1", JSON.stringify(s)); const ml = __nm.setMore(() => []); try { __nm.play("e"); return true; } catch (e) { return String(e); } finally { __nm.setMore(ml); } });
       check("とことんで足せる問題が無くても固まらずに終える", ok === true && await z.locator("#eres").count() === 1, String(ok));
@@ -316,8 +333,8 @@ try {
 
   // カレンダー・あとから：過去の日の記録を置いて見る。第1回から日がたっていなくても見られるよう、時計を10日進める
   {
-    const SHIFT = 10 * 864e5, TODAY = new Date(Date.now() + 9 * 3600e3 + SHIFT).toISOString().slice(0, 10), dayBefore = (n) => new Date(Date.parse(TODAY) - n * 864e5).toISOString().slice(0, 10);
-    const cx = await browser.newContext({ viewport: { width: 390, height: 800 } });
+    const SHIFT = 10 * 864e5, TODAY = new Date(Date.parse(TODAY0) + SHIFT).toISOString().slice(0, 10), dayBefore = (n) => new Date(Date.parse(TODAY) - n * 864e5).toISOString().slice(0, 10);
+    const cx = await newCtx({ viewport: { width: 390, height: 800 } });
     await cx.addInitScript((sh) => { const o = Date.now; Date.now = () => o() + sh; }, SHIFT);
     const q = await newPage(390, cx);
     await q.evaluate(([d2, d3]) => { localStorage.setItem("dot-v1", JSON.stringify({ v: 1, tut: true, days: { [d2]: { m: [0, 0, 0, 0, 0], k: [] }, [d3]: { m: [1, 0, 0, 2, 0], k: [] } }, hdays: {}, adays: {}, dex: {}, runs: {}, kofi: {}, ach: {}, ebest: 0 })); }, [dayBefore(2), dayBefore(3)]);
@@ -343,7 +360,7 @@ try {
 
   // 終えた回（gone）がある側の保存に失敗し、別のタブが古い回を新しく保存しても、終えた回を戻さない（shindo-yomi PR #1 の CodeRabbit。GameStore の after で落とす）
   {
-    const ctx = await browser.newContext({ viewport: { width: 390, height: 800 } });
+    const ctx = await newCtx({ viewport: { width: 390, height: 800 } });
     const g = await newPage(390, ctx);
     const left = await g.evaluate(() => {
       const r = { mode: "e", date: __nm.todayKey(), list: ["n3|1", "e2|1"], res: [{ m: 0 }], cur: null, id: "gone1" };
@@ -358,7 +375,7 @@ try {
   }
   // 同じ問題の途中で、保存に失敗した側と保存できた側のまちがいを合わせる（CodeRabbit shindo-yomi#1）
   {
-    const ctx = await browser.newContext({ viewport: { width: 390, height: 800 } });
+    const ctx = await newCtx({ viewport: { width: 390, height: 800 } });
     const g = await newPage(390, ctx);
     const got = await g.evaluate(() => {
       const base = __nm.load(), mk = (w, w2) => ({ mode: "p", date: __nm.todayKey(), list: ["n3|m1", "e2|m1"], res: [], cur: { i: 0, tag: "n3|m1", wrong: w, hints: 0, step: 2, w2 }, id: "mg1" });
@@ -375,7 +392,7 @@ try {
 
   // 古いタブ：同じ問題を2つのタブで開き、片方で答えたら、もう片方は二重に入れない
   {
-    const ctx = await browser.newContext({ viewport: { width: 390, height: 800 } });
+    const ctx = await newCtx({ viewport: { width: 390, height: 800 } });
     const a = await newPage(390, ctx); await closeHow(a); await a.click("#go-d");
     const b = await ctx.newPage(); b.on("pageerror", (e) => errors.push(e.message)); await b.goto(url); await b.waitForTimeout(150); await b.click("#go-d");
     await solve(a);
@@ -509,7 +526,7 @@ try {
 
   // 見やすさの設定を全部入れても、ページの一番下まで動ける（読み上げの class が html に当たって固まった。2026-11-05）
   {
-    const ctx = await browser.newContext({ viewport: { width: 390, height: 700 } });
+    const ctx = await newCtx({ viewport: { width: 390, height: 700 } });
     await ctx.addInitScript(() => localStorage.setItem("a11y-v1", JSON.stringify({ read: true, cvd: true, calm: true, say: true, ruby: true })));
     const q = await newPage(390, ctx); await closeHow(q);
     const r = await q.evaluate(() => { window.scrollTo(0, 1e5); const f = document.querySelector("footer").getBoundingClientRect(); return [scrollY, Math.round(f.bottom), innerHeight, getComputedStyle(document.documentElement).position]; });
